@@ -4,7 +4,8 @@ An educational Reinforcement Learning project comparing tabular Q-learning
 and Deep Q-Networks (DQN) on Snake.
 """
 
-from snake_rl.config import EnvironmentConfig
+from snake_rl.agents.q_learning import QLearningAgent
+from snake_rl.config import EnvironmentConfig, QLearningConfig
 from snake_rl.environment import (
     Action,
     Direction,
@@ -33,6 +34,8 @@ __all__ = [
     "FEATURE_NAMES",
     "NUM_STATES",
     "Point",
+    "QLearningAgent",
+    "QLearningConfig",
     "SnakeEnvironment",
     "SnakeObservation",
     "StateEncoder",
