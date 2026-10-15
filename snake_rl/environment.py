@@ -53,6 +53,34 @@ class Action(IntEnum):
     TURN_LEFT = 2
 
 
+def get_next_direction(current: Direction, action: Action) -> Direction:
+    """Compute the new absolute direction given current heading and relative action.
+
+    Args:
+        current: Current heading of the snake.
+        action: Relative movement action (STRAIGHT, TURN_RIGHT, TURN_LEFT).
+
+    Returns:
+        New absolute Direction.
+    """
+    if not isinstance(action, Action):
+        try:
+            action = Action(action)
+        except ValueError:
+            raise ValueError(
+                f"Invalid action '{action}'. Must be Action.STRAIGHT (0), "
+                "Action.TURN_RIGHT (1), or Action.TURN_LEFT (2)."
+            )
+
+    if action == Action.STRAIGHT:
+        return current
+    if action == Action.TURN_RIGHT:
+        return Direction((current.value + 1) % 4)
+    if action == Action.TURN_LEFT:
+        return Direction((current.value - 1) % 4)
+    raise ValueError(f"Unknown action: {action}")
+
+
 @dataclass(frozen=True)
 class SnakeObservation:
     """Immutable snapshot of the game state returned to callers.
@@ -319,13 +347,7 @@ class SnakeEnvironment:
 
     def _get_next_direction(self, current: Direction, action: Action) -> Direction:
         """Compute the new absolute direction given current heading and relative action."""
-        if action == Action.STRAIGHT:
-            return current
-        if action == Action.TURN_RIGHT:
-            return Direction((current.value + 1) % 4)
-        if action == Action.TURN_LEFT:
-            return Direction((current.value - 1) % 4)
-        raise ValueError(f"Unknown action: {action}")
+        return get_next_direction(current, action)
 
     def _place_food(self) -> Optional[Point]:
         """Place food uniformly at random on an unoccupied cell.
