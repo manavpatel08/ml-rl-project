@@ -1,0 +1,28 @@
+# Virtual environment
+.venv/
+venv/
+ENV/
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Testing & Coverage
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Local model checkpoints and generated outputs
+models/
+outputs/
+*.pth
+*.pt
+*.npy
+
+# Streamlit secrets and local configs
+.streamlit/secrets.toml
+
+# Operating System files
+.DS_Store
+Thumbs.db
