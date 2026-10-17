@@ -67,11 +67,27 @@ class QLearningAgent:
         Returns:
             The chosen Action.
         """
+        action, _ = self.select_action_with_mode(state)
+        return action
+
+    def select_action_with_mode(
+        self,
+        state: Union[int, SnakeObservation],
+    ) -> Tuple[Action, bool]:
+        """Select an action using epsilon-greedy exploration, reporting whether it explored.
+
+        Args:
+            state: Either an integer state index [0, 2047] or a SnakeObservation.
+
+        Returns:
+            Tuple of (chosen_action, is_exploring), where is_exploring is True if
+            the action was selected via random exploration, or False if greedy.
+        """
         if self._rng.random() < self.epsilon:
             random_action_int = self._rng.randint(0, NUM_ACTIONS - 1)
-            return Action(random_action_int)
+            return Action(random_action_int), True
 
-        return self.select_greedy_action(state)
+        return self.select_greedy_action(state), False
 
     def select_greedy_action(self, state: Union[int, SnakeObservation]) -> Action:
         """Select the greedy action (argmax Q) without exploration.

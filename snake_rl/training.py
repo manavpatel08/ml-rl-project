@@ -8,6 +8,7 @@ from dataclasses import dataclass, field
 import statistics
 from typing import Callable, Dict, List, Optional, Sequence
 
+from snake_rl.agents.dqn import DQNAgent
 from snake_rl.agents.q_learning import QLearningAgent
 from snake_rl.environment import SnakeEnvironment, SnakeObservation
 
@@ -24,6 +25,7 @@ class EpisodeMetrics:
         epsilon: Exploration rate at the conclusion of the episode.
         mean_td_error: Average absolute Temporal Difference error during training steps.
         termination_reason: Why the episode ended (e.g., 'wall_collision', 'self_collision', 'step_limit').
+        loss: Average loss across training steps in the episode (primarily for DQN).
     """
 
     episode: int
@@ -33,6 +35,8 @@ class EpisodeMetrics:
     epsilon: float
     mean_td_error: float
     termination_reason: str
+    loss: float = 0.0
+
 
 
 @dataclass
@@ -78,6 +82,11 @@ class TrainingHistory:
         """List of epsilon values after each episode."""
         return [ep.epsilon for ep in self.episodes]
 
+    @property
+    def losses(self) -> List[float]:
+        """List of loss values for each episode."""
+        return [ep.loss for ep in self.episodes]
+
     def moving_average_scores(self, window: int = 10) -> List[float]:
         """Compute the trailing rolling moving average of scores.
 
@@ -92,6 +101,11 @@ class TrainingHistory:
     def moving_average_rewards(self, window: int = 10) -> List[float]:
         """Compute the trailing rolling moving average of rewards."""
         return self._compute_moving_average(self.rewards, window)
+
+    def moving_average_losses(self, window: int = 10) -> List[float]:
+        """Compute the trailing rolling moving average of training losses."""
+        return self._compute_moving_average(self.losses, window)
+
 
     @staticmethod
     def _compute_moving_average(values: Sequence[float], window: int) -> List[float]:
@@ -183,3 +197,90 @@ def train_q_learning(
             callback(metrics)
 
     return history
+
+
+def train_dqn(
+    env: SnakeEnvironment,
+    agent: DQNAgent,
+    num_episodes: int,
+    base_seed: Optional[int] = None,
+    callback: Optional[Callable[[EpisodeMetrics], None]] = None,
+) -> TrainingHistory:
+    """Run a bounded training session for a Deep Q-Network agent.
+
+    Args:
+        env: Headless Snake environment.
+        agent: DQNAgent to train.
+        num_episodes: Exact number of episodes to train (must be positive).
+        base_seed: Optional base seed. If supplied, each episode uses seed (base_seed + episode).
+        callback: Optional callback invoked after each episode with EpisodeMetrics.
+
+    Returns:
+        TrainingHistory containing structured metrics for all completed episodes.
+
+    Raises:
+        ValueError: If num_episodes <= 0.
+    """
+    if num_episodes <= 0:
+        raise ValueError(f"num_episodes must be positive, got {num_episodes}")
+
+    history = TrainingHistory()
+
+    for ep in range(1, num_episodes + 1):
+        ep_seed = (base_seed + ep) if base_seed is not None else None
+        obs = env.reset(seed=ep_seed)
+
+        total_reward = 0.0
+        td_errors: List[float] = []
+        losses: List[float] = []
+        last_reason = "unknown"
+
+        while not env.done:
+            action = agent.select_action(obs)
+            step_result = env.step(action)
+
+            # Store transition in experience replay
+            agent.remember(
+                state=obs,
+                action=action,
+                reward=step_result.reward,
+                next_state=step_result.observation,
+                done=step_result.done,
+            )
+
+            # Optimization step if warmup reached
+            step_res = agent.train_step()
+            if step_res is not None:
+                step_loss, step_td = step_res
+                losses.append(step_loss)
+                td_errors.append(step_td)
+
+            total_reward += step_result.reward
+            obs = step_result.observation
+            last_reason = step_result.info.get("reason", "unknown")
+
+        # Decay epsilon once per episode
+        current_epsilon = agent.decay_epsilon()
+
+        # Compute averages
+        mean_td = (sum(td_errors) / len(td_errors)) if td_errors else 0.0
+        mean_loss = (sum(losses) / len(losses)) if losses else 0.0
+
+        metrics = EpisodeMetrics(
+            episode=ep,
+            total_reward=round(total_reward, 4),
+            score=env.score,
+            steps=env.steps,
+            epsilon=round(current_epsilon, 6),
+            mean_td_error=round(mean_td, 6),
+            termination_reason=last_reason,
+            loss=round(mean_loss, 6),
+        )
+
+        history.episodes.append(metrics)
+
+        if callback is not None:
+            callback(metrics)
+
+    return history
+
