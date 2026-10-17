@@ -31,19 +31,26 @@ Headless Game Engine & Utilities (snake_rl/config.py, rendering.py)
 
 ## Quickstart & Verification
 
-### 1. Run Unit Tests
-Run the complete unit test suite (65 tests covering environment, state encoding, Bellman arithmetic, DQN networks, replay buffer, baselines, and viewer):
+### 1. Launch the Streamlit Web Dashboard
+Launch the interactive browser dashboard containing Play, Train, Compare, and How It Works tabs:
+```bash
+.venv/bin/python -m streamlit run app.py
+```
+Open `http://localhost:8501` in your browser.
+
+### 2. Run Unit Tests
+Run the complete unit test suite (76 tests covering environment, state encoding, Bellman arithmetic, DQN networks, replay buffer, baselines, session state, safe checkpointing, and rendering):
 ```bash
 .venv/bin/python -m unittest discover -s tests -p "test_*.py" -v
 ```
 
-### 2. Launch the Visual Viewer
+### 3. Launch the Terminal Visualizer (CLI Alternative)
 Launch the interactive terminal viewer:
 ```bash
 .venv/bin/python viewer.py
 ```
 
-Or run dedicated visual commands:
+Or run dedicated terminal commands:
 - **Watch Live Q-Learning Training (10 episodes):**
   ```bash
   .venv/bin/python viewer.py --mode train --agent q_learning --episodes 10
@@ -56,8 +63,7 @@ Or run dedicated visual commands:
   ```bash
   .venv/bin/python viewer.py --mode eval --episodes 5 --checkpoint models/q_table_500ep.json
   ```
-- **Custom speed or seed:**
-  ```bash
+
   .venv/bin/python viewer.py --mode eval --episodes 5 --speed 0.08 --seed 42
   ```
 
@@ -154,7 +160,8 @@ Target Network: [Identical architecture, frozen weights, requires_grad = False]
 - [x] **Step 4:** Training Infrastructure, Baselines & Evaluation
 - [x] **Step 4.5:** Visual Playback & Checkpoint Verification
 - [x] **Step 5:** Deep Q-Networks (DQN) with PyTorch & Replay Buffer
-- [ ] **Step 6:** Streamlit UI for Web Demos
+- [x] **Step 6:** Streamlit UI for Web Demos
 - [ ] **Step 7:** Deployment Preparation
 - [ ] **Step 8:** Controlled Experiments & Comparative Analysis
+
 

@@ -31,8 +31,22 @@ from snake_rl.environment import (
     get_next_direction,
 )
 from snake_rl.evaluation import EvaluationResult, compare_agents, evaluate_agent
-from snake_rl.rendering import RenderedFrame, format_hud, render_ascii, render_grid
+from snake_rl.rendering import (
+    RenderedFrame,
+    format_hud,
+    render_ascii,
+    render_grid,
+    render_image,
+    render_svg,
+)
+from snake_rl.session import (
+    EvaluationSession,
+    TrainingSession,
+    list_available_checkpoints,
+    safe_save_checkpoint,
+)
 from snake_rl.state import (
+
     FEATURE_NAMES,
     NUM_STATES,
     TOTAL_FEATURES,
@@ -60,6 +74,7 @@ __all__ = [
     "EnvironmentConfig",
     "EpisodeMetrics",
     "EvaluationResult",
+    "EvaluationSession",
     "FEATURE_NAMES",
     "HeuristicAgent",
     "NUM_STATES",
@@ -76,6 +91,7 @@ __all__ = [
     "StepResult",
     "TOTAL_FEATURES",
     "TrainingHistory",
+    "TrainingSession",
     "Transition",
     "VisualPlaybackRunner",
     "compare_agents",
@@ -87,13 +103,18 @@ __all__ = [
     "format_hud",
     "get_next_direction",
     "is_action_dangerous",
+    "list_available_checkpoints",
     "load_dqn_checkpoint",
     "load_q_table",
     "render_ascii",
     "render_grid",
+    "render_image",
+    "render_svg",
+    "safe_save_checkpoint",
     "save_dqn_checkpoint",
     "save_q_table",
     "train_dqn",
     "train_q_learning",
 ]
+
 

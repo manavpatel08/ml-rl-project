@@ -196,3 +196,217 @@ def format_hud(
     ]
 
     return "\n".join(hud_lines)
+
+
+def render_svg(
+    observation: SnakeObservation,
+    cell_size: int = 24,
+    show_eyes: bool = True,
+    status_overlay: Optional[str] = None,
+) -> str:
+    """Render a scalable vector graphic (SVG) representation of the Snake board.
+
+    Produces a crisp, modern 2D grid visualization with rounded snake body segments,
+    directional eye orientation, glowing food, and subtle grid lines.
+
+    Args:
+        observation: Current game observation snapshot.
+        cell_size: Width/height of each grid cell in pixels (default 24).
+        show_eyes: Whether to render directional eye pupils on the snake's head.
+        status_overlay: Optional overlay text banner (e.g. 'Game Over: Wall Collision').
+
+    Returns:
+        Valid SVG XML string suitable for direct HTML/Streamlit embedding.
+    """
+    width, height = observation.grid_size
+    svg_w, svg_h = width * cell_size, height * cell_size
+
+    parts: List[str] = [
+        f'<svg width="{svg_w}" height="{svg_h}" viewBox="0 0 {svg_w} {svg_h}" '
+        f'xmlns="http://www.w3.org/2000/svg" style="border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,0.4);">'
+    ]
+
+    # Background
+    parts.append(
+        f'<rect width="{svg_w}" height="{svg_h}" rx="12" fill="#0b0f19" stroke="#1e293b" stroke-width="2"/>'
+    )
+
+    # Grid mesh lines
+    for x in range(cell_size, svg_w, cell_size):
+        parts.append(
+            f'<line x1="{x}" y1="0" x2="{x}" y2="{svg_h}" stroke="#141c2e" stroke-width="0.75"/>'
+        )
+    for y in range(cell_size, svg_h, cell_size):
+        parts.append(
+            f'<line x1="0" y1="{y}" x2="{svg_w}" y2="{y}" stroke="#141c2e" stroke-width="0.75"/>'
+        )
+
+    # Food item (glowing ruby circle with specular dot)
+    if observation.food is not None:
+        fx = observation.food.x * cell_size + cell_size / 2.0
+        fy = observation.food.y * cell_size + cell_size / 2.0
+        r_food = max(3.0, (cell_size / 2.0) - 3.0)
+        parts.append(
+            f'<circle cx="{fx:.1f}" cy="{fy:.1f}" r="{r_food:.1f}" fill="#ef4444" stroke="#fca5a5" stroke-width="1.5"/>'
+        )
+        parts.append(
+            f'<circle cx="{fx - 2.5:.1f}" cy="{fy - 2.5:.1f}" r="{max(1.0, r_food / 4.0):.1f}" fill="#ffffff" opacity="0.8"/>'
+        )
+
+    # Snake body segments (from tail to neck)
+    body_len = len(observation.body)
+    for idx, seg in enumerate(observation.body[1:], start=1):
+        bx = seg.x * cell_size + 1.5
+        by = seg.y * cell_size + 1.5
+        bw = cell_size - 3.0
+        # Color gradient: closer to neck is brighter, closer to tail is deeper
+        t = idx / max(1, body_len)
+        color = "#10b981" if t < 0.5 else "#059669"
+        parts.append(
+            f'<rect x="{bx:.1f}" y="{by:.1f}" width="{bw:.1f}" height="{bw:.1f}" rx="5" '
+            f'fill="{color}" stroke="#047857" stroke-width="1"/>'
+        )
+
+    # Snake head
+    hx = observation.head.x * cell_size + 1.0
+    hy = observation.head.y * cell_size + 1.0
+    hw = cell_size - 2.0
+    parts.append(
+        f'<rect x="{hx:.1f}" y="{hy:.1f}" width="{hw:.1f}" height="{hw:.1f}" rx="6" '
+        f'fill="#34d399" stroke="#10b981" stroke-width="1.5"/>'
+    )
+
+    # Directional eyes
+    if show_eyes:
+        d = observation.direction
+        r_eye = max(1.5, cell_size * 0.11)
+        r_pupil = max(0.8, cell_size * 0.055)
+        offset = cell_size * 0.24
+        edge_offset = cell_size * 0.20
+
+        if d == Direction.RIGHT:
+            e1 = (hx + hw - edge_offset, hy + offset)
+            e2 = (hx + hw - edge_offset, hy + hw - offset)
+            p1 = (e1[0] + 0.8, e1[1])
+            p2 = (e2[0] + 0.8, e2[1])
+        elif d == Direction.LEFT:
+            e1 = (hx + edge_offset, hy + offset)
+            e2 = (hx + edge_offset, hy + hw - offset)
+            p1 = (e1[0] - 0.8, e1[1])
+            p2 = (e2[0] - 0.8, e2[1])
+        elif d == Direction.UP:
+            e1 = (hx + offset, hy + edge_offset)
+            e2 = (hx + hw - offset, hy + edge_offset)
+            p1 = (e1[0], e1[1] - 0.8)
+            p2 = (e2[0], e2[1] - 0.8)
+        else:  # DOWN
+            e1 = (hx + offset, hy + hw - edge_offset)
+            e2 = (hx + hw - offset, hy + hw - edge_offset)
+            p1 = (e1[0], e1[1] + 0.8)
+            p2 = (e2[0], e2[1] + 0.8)
+
+        parts.append(
+            f'<circle cx="{e1[0]:.1f}" cy="{e1[1]:.1f}" r="{r_eye:.1f}" fill="#ffffff"/>'
+            f'<circle cx="{p1[0]:.1f}" cy="{p1[1]:.1f}" r="{r_pupil:.1f}" fill="#000000"/>'
+            f'<circle cx="{e2[0]:.1f}" cy="{e2[1]:.1f}" r="{r_eye:.1f}" fill="#ffffff"/>'
+            f'<circle cx="{p2[0]:.1f}" cy="{p2[1]:.1f}" r="{r_pupil:.1f}" fill="#000000"/>'
+        )
+
+    # Optional status overlay card (e.g. for game over)
+    if status_overlay:
+        card_w = min(svg_w - 40, 360)
+        card_h = 50
+        cx = (svg_w - card_w) / 2.0
+        cy = (svg_h - card_h) / 2.0
+        parts.append(
+            f'<rect x="{cx:.1f}" y="{cy:.1f}" width="{card_w}" height="{card_h}" rx="8" '
+            f'fill="#0f172a" fill-opacity="0.9" stroke="#ef4444" stroke-width="2"/>'
+            f'<text x="{svg_w / 2.0:.1f}" y="{(cy + 31):.1f}" text-anchor="middle" fill="#f87171" '
+            f'font-family="system-ui, -apple-system, sans-serif" font-size="15" font-weight="bold">'
+            f'{status_overlay}</text>'
+        )
+
+    parts.append("</svg>")
+    return "".join(parts)
+
+
+def render_image(
+    observation: SnakeObservation,
+    cell_size: int = 24,
+    show_eyes: bool = True,
+) -> Any:
+    """Render a Pillow Image representation of the Snake board.
+
+    Args:
+        observation: Current game observation snapshot.
+        cell_size: Pixel dimension for each cell.
+        show_eyes: Whether to draw eyes on the head.
+
+    Returns:
+        PIL.Image.Image instance.
+    """
+    try:
+        from PIL import Image, ImageDraw
+    except ImportError as exc:
+        raise ImportError(
+            "Pillow is required for render_image. Install with: pip install pillow"
+        ) from exc
+
+    width, height = observation.grid_size
+    img_w, img_h = width * cell_size, height * cell_size
+    img = Image.new("RGB", (img_w, img_h), color="#0b0f19")
+    draw = ImageDraw.Draw(img)
+
+    # Grid mesh lines
+    for x in range(cell_size, img_w, cell_size):
+        draw.line([(x, 0), (x, img_h)], fill="#141c2e", width=1)
+    for y in range(cell_size, img_h, cell_size):
+        draw.line([(0, y), (img_w, y)], fill="#141c2e", width=1)
+
+    # Food
+    if observation.food is not None:
+        fx = observation.food.x * cell_size
+        fy = observation.food.y * cell_size
+        draw.ellipse(
+            [fx + 3, fy + 3, fx + cell_size - 3, fy + cell_size - 3],
+            fill="#ef4444",
+            outline="#fca5a5",
+        )
+
+    # Snake body
+    for seg in observation.body[1:]:
+        bx = seg.x * cell_size
+        by = seg.y * cell_size
+        draw.rectangle(
+            [bx + 2, by + 2, bx + cell_size - 2, by + cell_size - 2],
+            fill="#10b981",
+            outline="#047857",
+        )
+
+    # Snake head
+    hx = observation.head.x * cell_size
+    hy = observation.head.y * cell_size
+    draw.rectangle(
+        [hx + 1, hy + 1, hx + cell_size - 1, hy + cell_size - 1],
+        fill="#34d399",
+        outline="#10b981",
+    )
+
+    # Eyes
+    if show_eyes:
+        d = observation.direction
+        s = cell_size
+        if d == Direction.RIGHT:
+            eyes = [(hx + s - 6, hy + 5), (hx + s - 6, hy + s - 7)]
+        elif d == Direction.LEFT:
+            eyes = [(hx + 4, hy + 5), (hx + 4, hy + s - 7)]
+        elif d == Direction.UP:
+            eyes = [(hx + 5, hy + 4), (hx + s - 7, hy + 4)]
+        else:
+            eyes = [(hx + 5, hy + s - 6), (hx + s - 7, hy + s - 6)]
+
+        for ex, ey in eyes:
+            draw.ellipse([ex, ey, ex + 2, ey + 2], fill="#ffffff")
+
+    return img
+
