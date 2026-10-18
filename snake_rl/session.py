@@ -200,6 +200,8 @@ class TrainingSession:
                 mean_td_error=round(mean_td, 6),
                 termination_reason=self.last_termination_reason,
                 loss=round(mean_loss, 6),
+                cumulative_steps=self.total_steps,
+                cumulative_gradient_updates=getattr(self.agent, "train_step_count", 0),
             )
             self.history.episodes.append(metrics)
 
@@ -248,6 +250,34 @@ class TrainingSession:
             if self.history.losses
             else self.last_loss
         )
+
+        is_dqn = isinstance(self.agent, DQNAgent)
+        buffer_size = len(self.agent.replay_buffer) if is_dqn and hasattr(self.agent, "replay_buffer") else 0
+        buffer_capacity = (
+            self.agent.replay_buffer.capacity
+            if is_dqn and hasattr(self.agent, "replay_buffer") and hasattr(self.agent.replay_buffer, "capacity")
+            else 0
+        )
+        buffer_occupancy_pct = (
+            (buffer_size / buffer_capacity * 100.0) if is_dqn and buffer_capacity > 0 else 0.0
+        )
+        gradient_updates = getattr(self.agent, "train_step_count", 0)
+        target_sync_interval = (
+            getattr(self.agent.config, "target_update_interval", 0) if is_dqn else 0
+        )
+        if is_dqn and target_sync_interval > 0:
+            target_sync_count = gradient_updates // target_sync_interval
+            updates_since_sync = gradient_updates % target_sync_interval
+            steps_until_sync = (
+                target_sync_interval - updates_since_sync
+                if updates_since_sync > 0
+                else target_sync_interval
+            )
+        else:
+            target_sync_count = 0
+            updates_since_sync = 0
+            steps_until_sync = 0
+
         return {
             "episode": self.current_episode,
             "total_episodes": self.total_episodes,
@@ -262,12 +292,23 @@ class TrainingSession:
             "recent_loss_avg": round(recent_loss_avg, 5),
             "last_td_error": round(self.last_td_error, 5),
             "total_steps": self.total_steps,
-            "train_step_count": getattr(self.agent, "train_step_count", 0),
+            "train_step_count": gradient_updates,
             "is_paused": self.is_paused,
             "is_stopped": self.is_stopped,
             "is_episode_done": self.is_episode_done,
             "termination_reason": self.last_termination_reason,
             "completed_episodes": len(self.history),
+            "is_dqn": is_dqn,
+            "buffer_size": buffer_size,
+            "buffer_capacity": buffer_capacity,
+            "buffer_occupancy_pct": round(buffer_occupancy_pct, 2),
+            "buffer_occupancy_str": f"{buffer_size} / {buffer_capacity} ({buffer_occupancy_pct:.1f}%)" if is_dqn else "N/A",
+            "gradient_updates": gradient_updates,
+            "target_sync_interval": target_sync_interval,
+            "updates_since_sync": updates_since_sync,
+            "steps_until_sync": steps_until_sync,
+            "target_sync_count": target_sync_count,
+            "target_sync_str": f"{updates_since_sync} / {target_sync_interval} ({steps_until_sync} remaining)" if is_dqn else "N/A",
         }
 
 

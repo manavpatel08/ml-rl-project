@@ -357,6 +357,10 @@ class TestDQN(unittest.TestCase):
         self.assertEqual(len(history.scores), 3)
         self.assertEqual(len(history.rewards), 3)
         self.assertEqual(len(history.losses), 3)
+        self.assertEqual(len(history.cumulative_steps), 3)
+        self.assertEqual(history.cumulative_steps[-1], history.total_steps)
+        self.assertEqual(len(history.cumulative_gradient_updates), 3)
+        self.assertEqual(history.cumulative_gradient_updates[-1], agent.train_step_count)
 
         # Invalid episode counts raise ValueError
         with self.assertRaises(ValueError):

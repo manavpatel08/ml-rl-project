@@ -26,6 +26,8 @@ class EpisodeMetrics:
         mean_td_error: Average absolute Temporal Difference error during training steps.
         termination_reason: Why the episode ended (e.g., 'wall_collision', 'self_collision', 'step_limit').
         loss: Average loss across training steps in the episode (primarily for DQN).
+        cumulative_steps: Total cumulative environment steps taken up to this episode.
+        cumulative_gradient_updates: Total cumulative neural network updates up to this episode.
     """
 
     episode: int
@@ -36,6 +38,8 @@ class EpisodeMetrics:
     mean_td_error: float
     termination_reason: str
     loss: float = 0.0
+    cumulative_steps: int = 0
+    cumulative_gradient_updates: int = 0
 
 
 
@@ -86,6 +90,16 @@ class TrainingHistory:
     def losses(self) -> List[float]:
         """List of loss values for each episode."""
         return [ep.loss for ep in self.episodes]
+
+    @property
+    def cumulative_steps(self) -> List[int]:
+        """List of cumulative environment steps after each episode."""
+        return [ep.cumulative_steps for ep in self.episodes]
+
+    @property
+    def cumulative_gradient_updates(self) -> List[int]:
+        """List of cumulative gradient updates after each episode."""
+        return [ep.cumulative_gradient_updates for ep in self.episodes]
 
     def moving_average_scores(self, window: int = 10) -> List[float]:
         """Compute the trailing rolling moving average of scores.
@@ -146,6 +160,7 @@ def train_q_learning(
         raise ValueError(f"num_episodes must be positive, got {num_episodes}")
 
     history = TrainingHistory()
+    cumulative_steps = 0
 
     for ep in range(1, num_episodes + 1):
         # 1. Reset environment with deterministic seed if provided
@@ -175,6 +190,8 @@ def train_q_learning(
             obs = step_result.observation
             last_reason = step_result.info.get("reason", "unknown")
 
+        cumulative_steps += env.steps
+
         # 3. Decay epsilon once per episode
         current_epsilon = agent.decay_epsilon()
 
@@ -188,6 +205,8 @@ def train_q_learning(
             epsilon=round(current_epsilon, 6),
             mean_td_error=round(mean_td, 6),
             termination_reason=last_reason,
+            cumulative_steps=cumulative_steps,
+            cumulative_gradient_updates=0,
         )
 
         history.episodes.append(metrics)
@@ -225,6 +244,7 @@ def train_dqn(
         raise ValueError(f"num_episodes must be positive, got {num_episodes}")
 
     history = TrainingHistory()
+    cumulative_steps = 0
 
     for ep in range(1, num_episodes + 1):
         ep_seed = (base_seed + ep) if base_seed is not None else None
@@ -259,6 +279,8 @@ def train_dqn(
             obs = step_result.observation
             last_reason = step_result.info.get("reason", "unknown")
 
+        cumulative_steps += env.steps
+
         # Decay epsilon once per episode
         current_epsilon = agent.decay_epsilon()
 
@@ -275,6 +297,8 @@ def train_dqn(
             mean_td_error=round(mean_td, 6),
             termination_reason=last_reason,
             loss=round(mean_loss, 6),
+            cumulative_steps=cumulative_steps,
+            cumulative_gradient_updates=agent.train_step_count,
         )
 
         history.episodes.append(metrics)

@@ -39,7 +39,7 @@ Launch the interactive browser dashboard containing Play, Train, Compare, and Ho
 Open `http://localhost:8501` in your browser.
 
 ### 2. Run Unit Tests
-Run the complete unit test suite (76 tests covering environment, state encoding, Bellman arithmetic, DQN networks, replay buffer, baselines, session state, safe checkpointing, and rendering):
+Run the complete unit test suite (77 tests covering environment, state encoding, Bellman arithmetic, DQN networks, replay buffer, baselines, session state, safe checkpointing, and rendering):
 ```bash
 .venv/bin/python -m unittest discover -s tests -p "test_*.py" -v
 ```
@@ -108,16 +108,19 @@ Target Network: [Identical architecture, frozen weights, requires_grad = False]
 - **`3` / `s`:** Slow speed ($120\text{ ms}$ per step).
 - **`q`:** Stop playback safely.
 
-### HUD Metrics Explained
+### HUD Metrics & DQN Telemetry Explained
 - **`Episode` & Progress bar:** Current episode number and completion percentage.
 - **`Score`:** Total food items eaten in the current episode.
-- **`Steps`:** Actions taken before the episode concludes.
+- **`Steps` & `Total Env Steps`:** Steps in current episode and cumulative environment transitions across the session.
 - **`Reward`:** Cumulative scalar reward ($+10.0$ for food, $-10.0$ for collision, $-0.1$ for movement).
 - **`Rolling Avg Score`:** 10-episode trailing moving average score.
-- **`Epsilon`:** Current exploration probability ($1.0 \rightarrow 0.01$).
+- **`Epsilon (ε)`:** Current exploration probability ($1.0 \rightarrow 0.01$).
 - **`Decision Badge`:** 
   - `🎲 EXPLORING (Random Action)`: The agent made a random exploratory choice.
   - `🧠 EXPLOITING (Greedy Q-Value)`: The agent chose the highest Q-value action from its network/table.
+- **`Replay Buffer Occupancy` (DQN Only):** Number of stored transitions vs buffer capacity (e.g., `523 / 10,000 (5.2%)`).
+- **`Actual Gradient Updates` (DQN Only):** Exact number of minibatch gradient descent updates performed on the online network.
+- **`Target Sync Progress` (DQN Only):** Progress toward the next target network synchronization (e.g., `460 / 500 (40 steps remaining)`).
 
 ---
 

@@ -33,6 +33,9 @@ class TestTrainingAndEvaluation(unittest.TestCase):
         self.assertEqual(len(history.lengths), 4)
         self.assertEqual(len(history.epsilons), 4)
         self.assertGreater(history.total_steps, 0)
+        self.assertEqual(len(history.cumulative_steps), 4)
+        self.assertEqual(history.cumulative_steps[-1], history.total_steps)
+        self.assertTrue(all(history.cumulative_steps[i] <= history.cumulative_steps[i+1] for i in range(3)))
 
         # Verify moving averages
         ma_scores = history.moving_average_scores(window=2)

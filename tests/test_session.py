@@ -137,6 +137,55 @@ class TestSessionAndRendering(unittest.TestCase):
         summary = session.get_metrics_summary()
         self.assertIn("train_step_count", summary)
         self.assertIn("recent_loss_avg", summary)
+        self.assertTrue(summary["is_dqn"])
+        self.assertEqual(summary["buffer_size"], 5)
+        self.assertEqual(summary["buffer_capacity"], config.buffer_capacity)
+        self.assertAlmostEqual(summary["buffer_occupancy_pct"], 5 / config.buffer_capacity * 100.0, places=2)
+        self.assertEqual(summary["gradient_updates"], agent.train_step_count)
+
+    def test_05b_dqn_telemetry_and_sync_progress(self) -> None:
+        """Requirement: DQN telemetry computes exact sync progress, steps remaining, and buffer occupancy."""
+        config = DQNConfig(target_update_interval=500, buffer_capacity=1000)
+        agent = DQNAgent(config=config, seed=42)
+        session = TrainingSession(agent=agent, total_episodes=5, base_seed=42)
+
+        # 1. At 0 gradient updates:
+        agent.train_step_count = 0
+        summary = session.get_metrics_summary()
+        self.assertTrue(summary["is_dqn"])
+        self.assertEqual(summary["updates_since_sync"], 0)
+        self.assertEqual(summary["steps_until_sync"], 500)
+        self.assertEqual(summary["target_sync_count"], 0)
+
+        # 2. At 460 gradient updates:
+        agent.train_step_count = 460
+        summary = session.get_metrics_summary()
+        self.assertEqual(summary["updates_since_sync"], 460)
+        self.assertEqual(summary["steps_until_sync"], 40)
+        self.assertEqual(summary["target_sync_count"], 0)
+
+        # 3. At 500 gradient updates (just synchronized):
+        agent.train_step_count = 500
+        summary = session.get_metrics_summary()
+        self.assertEqual(summary["updates_since_sync"], 0)
+        self.assertEqual(summary["steps_until_sync"], 500)
+        self.assertEqual(summary["target_sync_count"], 1)
+
+        # 4. At 501 gradient updates:
+        agent.train_step_count = 501
+        summary = session.get_metrics_summary()
+        self.assertEqual(summary["updates_since_sync"], 1)
+        self.assertEqual(summary["steps_until_sync"], 499)
+        self.assertEqual(summary["target_sync_count"], 1)
+
+        # 5. Non-DQN agent (QLearningAgent) has is_dqn=False and zero/empty DQN fields
+        q_agent = QLearningAgent(seed=42)
+        q_session = TrainingSession(agent=q_agent, total_episodes=2)
+        q_summary = q_session.get_metrics_summary()
+        self.assertFalse(q_summary["is_dqn"])
+        self.assertEqual(q_summary["buffer_size"], 0)
+        self.assertEqual(q_summary["buffer_capacity"], 0)
+        self.assertEqual(q_summary["buffer_occupancy_str"], "N/A")
 
     def test_06_training_session_episode_completion_and_decay(self) -> None:
         """Requirement: Episode conclusion decays epsilon once and records EpisodeMetrics."""
@@ -152,6 +201,8 @@ class TestSessionAndRendering(unittest.TestCase):
 
         self.assertTrue(session.is_episode_done)
         self.assertEqual(len(session.history), 1)
+        self.assertEqual(session.history.episodes[0].cumulative_steps, session.total_steps)
+        self.assertEqual(session.history.cumulative_steps[0], session.total_steps)
         # Epsilon decayed once
         self.assertAlmostEqual(agent.epsilon, 0.9)
 

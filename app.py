@@ -64,6 +64,12 @@ st.markdown(
         font-size: 1.45rem;
         font-weight: 700;
     }
+    .metric-sub {
+        color: #94a3b8;
+        font-size: 0.78rem;
+        margin-top: 4px;
+        font-weight: 500;
+    }
     .badge-explore {
         background-color: #ca8a04;
         color: #fef08a;
@@ -563,7 +569,7 @@ def render_train_metrics(slot: Any, metrics: Dict[str, Any]) -> None:
         with m6:
             st.markdown(
                 f'<div class="metric-card"><div class="metric-title">Total Env Steps</div>'
-                f'<div class="metric-value">{metrics["total_steps"]}</div></div>',
+                f'<div class="metric-value">{metrics["total_steps"]:,}</div></div>',
                 unsafe_allow_html=True,
             )
         with m7:
@@ -573,9 +579,9 @@ def render_train_metrics(slot: Any, metrics: Dict[str, Any]) -> None:
                 unsafe_allow_html=True,
             )
         with m8:
-            if metrics["train_step_count"] > 0:
+            if metrics.get("is_dqn", False):
                 st.markdown(
-                    f'<div class="metric-card"><div class="metric-title">DQN Loss (Recent)</div>'
+                    f'<div class="metric-card"><div class="metric-title">Huber Loss (Recent)</div>'
                     f'<div class="metric-value">{metrics["recent_loss_avg"]:.4f}</div></div>',
                     unsafe_allow_html=True,
                 )
@@ -583,6 +589,41 @@ def render_train_metrics(slot: Any, metrics: Dict[str, Any]) -> None:
                 st.markdown(
                     f'<div class="metric-card"><div class="metric-title">Last Action</div>'
                     f'<div class="metric-value">{metrics["last_action_name"]}</div></div>',
+                    unsafe_allow_html=True,
+                )
+
+        # Dedicated DQN Optimization & Replay Telemetry (Displayed strictly when agent is DQN)
+        if metrics.get("is_dqn", False):
+            st.markdown("##### 🧠 Deep Q-Network Optimization & Replay Telemetry")
+            d1, d2, d3 = st.columns(3)
+            with d1:
+                st.markdown(
+                    f'<div class="metric-card">'
+                    f'<div class="metric-title">Replay Buffer Occupancy</div>'
+                    f'<div class="metric-value">{metrics["buffer_size"]:,} / {metrics["buffer_capacity"]:,}</div>'
+                    f'<div class="metric-sub">{metrics["buffer_occupancy_pct"]:.1f}% capacity utilized</div>'
+                    f'</div>',
+                    unsafe_allow_html=True,
+                )
+            with d2:
+                st.markdown(
+                    f'<div class="metric-card">'
+                    f'<div class="metric-title">Actual Gradient Updates</div>'
+                    f'<div class="metric-value">{metrics["gradient_updates"]:,}</div>'
+                    f'<div class="metric-sub">Minibatch SGD optimization steps</div>'
+                    f'</div>',
+                    unsafe_allow_html=True,
+                )
+            with d3:
+                sync_caption = (
+                    f"{metrics['steps_until_sync']} steps until sync (Syncs: {metrics['target_sync_count']})"
+                )
+                st.markdown(
+                    f'<div class="metric-card">'
+                    f'<div class="metric-title">Target Sync Progress</div>'
+                    f'<div class="metric-value">{metrics["updates_since_sync"]} / {metrics["target_sync_interval"]}</div>'
+                    f'<div class="metric-sub">{sync_caption}</div>'
+                    f'</div>',
                     unsafe_allow_html=True,
                 )
 
